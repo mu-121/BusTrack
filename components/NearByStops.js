@@ -2,12 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 const NearStops = () => {
-  // Sample nearby stops data (Replace this with actual data from the backend or real-time location services)
+  
   const nearbyStopsData = [
-    { id: '101', name: 'Stop 1', distance: '0.5 miles' },
-    { id: '102', name: 'Stop 2', distance: '0.8 miles' },
-    { id: '103', name: 'Stop 3', distance: '1.2 miles' },
-    // Add more nearby stops here...
+    { id: '101', name: 'Sohan', distance: '0.5 km' },
+    { id: '102', name: 'Dhoke kala khan', distance: '0.8 km' },
+    { id: '103', name: 'Iqbal Town', distance: '1.2 km' },
+    { id: '103', name: 'Kuri Road', distance: '1.8 km' },
+    { id: '103', name: 'Zia Masjid', distance: '2.5 km' },
+    { id: '103', name: 'Khana Pul', distance: '3 km' },
+    
   ];
 
   return (

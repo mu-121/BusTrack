@@ -1,34 +1,61 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, FlatList, Modal, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Modal, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { getDatabase, ref, get } from 'firebase/database';
+import { initializeApp } from 'firebase/app';
 
-// Import your logo image here
-import LogoImage from '../trackon-bus-1.jpg';
+const firebaseConfig = {
+    // Your Firebase Config here
+    apiKey: "AIzaSyCV1UW_QBiSU6tRfgE5xgPXM1QnBpUm6Xc",
+    authDomain: "my-project-b7ecb.firebaseapp.com",
+    projectId: "my-project-b7ecb",
+    storageBucket: "my-project-b7ecb.appspot.com",
+    messagingSenderId: "1052885078165",
+    appId: "1:1052885078165:web:f472c88a1cd18a1ff60b9c",
+    measurementId: "G-6XY6P7DH3H",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase and get reference to the database
+const database = getDatabase();
 
 const ArrivalTime = () => {
-  const busArrivalTimeData = {
-    // Sample bus arrival time data for different stops (Replace this with actual data from the backend)
-    '101': [
-      { id: 'A1', stopName: 'Stop 101', busNumber: 'Bus A', arrivalTime: '08:10 AM' },
-      { id: 'A2', stopName: 'Stop 101', busNumber: 'Bus B', arrivalTime: '08:15 AM' },
-      
-    ],
-    '102': [
-      { id: 'B1', stopName: 'Stop 102', busNumber: 'Bus C', arrivalTime: '08:20 AM' },
-      { id: 'B2', stopName: 'Stop 102', busNumber: 'Bus D', arrivalTime: '08:25 AM' },
-    ],
-    '103': [
-      { id: 'C1', stopName: 'Stop 103', busNumber: 'Bus E', arrivalTime: '08:30 AM' },
-      { id: 'C2', stopName: 'Stop 103', busNumber: 'Bus F', arrivalTime: '08:35 AM' },
-    ],
-    // Add more bus arrival time data for other stops...
-  };
-
-  const [selectedStopId, setSelectedStopId] = useState(''); // Default stop ID (empty)
+  const navigation = useNavigation();
+  const [selectedStopId, setSelectedStopId] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [stopList, setStopList] = useState([]);
+
+  useEffect(() => {
+    // Fetch stops from Firebase when component mounts
+    const fetchStopsFromFirebase = async () => {
+      try {
+        const stopsRef = ref(database, 'Stops');
+        const snapshot = await get(stopsRef);
+        if (snapshot.exists()) {
+          const stopsData = snapshot.val();
+          const stopsArray = Object.keys(stopsData).map(stopId => ({
+            id: stopId,
+            stopName: stopsData[stopId]
+          }));
+          setStopList(stopsArray);
+        }
+      } catch (error) {
+        console.error('Error fetching stops from Firebase: ', error);
+      }
+    };
+
+    fetchStopsFromFirebase();
+  }, []);
 
   const handleStopSelect = (stopId) => {
     setSelectedStopId(stopId);
     setIsDropdownOpen(false);
+  };
+
+  const handleBusSelect = (busNumber) => {
+    navigation.navigate('BusTrackingMap', { busNumber });
   };
 
   const renderStopItem = ({ item }) => (
@@ -43,16 +70,8 @@ const ArrivalTime = () => {
     </TouchableOpacity>
   );
 
-  const stopList = Object.keys(busArrivalTimeData).map((stopId) => ({
-    id: stopId,
-    stopName: `Stop ${stopId}`,
-  }));
-
   return (
     <View style={styles.container}>
-      {/* Logo */}
-      <Image source={LogoImage} style={styles.logo} />
-
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Bus Arrival Time</Text>
       </View>
@@ -75,7 +94,7 @@ const ArrivalTime = () => {
               data={stopList}
               keyExtractor={(item) => item.id}
               renderItem={renderStopItem}
-              extraData={selectedStopId} // Pass selectedStopId as extraData to ensure FlatList updates when the selection changes
+              extraData={selectedStopId} 
             />
           </View>
         </Modal>
@@ -85,16 +104,21 @@ const ArrivalTime = () => {
             <Text style={styles.subTitle}>
               Bus Arrival Time at {stopList.find((stop) => stop.id === selectedStopId)?.stopName}
             </Text>
+            {/* Placeholder for busArrivalTimeData */}
             <FlatList
-              data={busArrivalTimeData[selectedStopId]}
+              data={[]}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <View style={styles.busArrivalTimeItem}>
-                  <Text style={styles.busArrivalTimeText}>Bus: {item.busNumber}</Text>
-                  <Text style={[styles.busArrivalTimeText, { color: '#187bcd' }]}>
-                    Arrival Time: {item.arrivalTime}
-                  </Text>
-                </View>
+                <TouchableOpacity
+                  onPress={() => handleBusSelect(item.busNumber)}
+                >
+                  <View style={styles.busArrivalTimeItem}>
+                    <Text style={styles.busArrivalTimeText}>Bus: {item.busNumber}</Text>
+                    <Text style={[styles.busArrivalTimeText, { color: '#187bcd' }]}>
+                      Arrival Time: {item.arrivalTime}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               )}
             />
           </>
@@ -109,27 +133,21 @@ const ArrivalTime = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center', // Move content to the center vertically
+    justifyContent: 'center',
     backgroundColor: '#f2f2f2',
     padding: 20,
-  },
-  logo: {
-    width: 0,
-    height: 0,
-    alignSelf: 'center', // Center the logo horizontally
-    marginBottom: 20, // Add some space between the logo and the header
   },
   headerContainer: {
     marginBottom: 20,
   },
   contentContainer: {
-    flex: 1, // Take available space to center content vertically
+    flex: 1,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#187bcd',
-    textAlign: 'center', // Center the title text
+    textAlign: 'center',
   },
   dropdownButton: {
     height: 40,

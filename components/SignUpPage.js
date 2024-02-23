@@ -8,10 +8,12 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getFirestore, collection, addDoc } from '@react-native-firebase/firestore';
+import firestore from '@react-native-firebase/firestore';
 import { initializeApp } from '@react-native-firebase/app';
+import auth from '@react-native-firebase/auth';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 const Signup = () => {
@@ -21,45 +23,62 @@ const Signup = () => {
   const [regno, setRegno] = useState('');
   const [contact, setContact] = useState('');
   const [confirmpassword, setConfirmpassword] = useState('');
+  const [error, setError] = useState('');
 
   const navigation = useNavigation();
 
-  // Initialize Firebase
   const firebaseConfig = {
     // Your Firebase configuration here
     apiKey: "AIzaSyCV1UW_QBiSU6tRfgE5xgPXM1QnBpUm6Xc",
     authDomain: "my-project-b7ecb.firebaseapp.com",
     projectId: "my-project-b7ecb",
-    databaseURL:'https://console.firebase.google.com/project/my-project-b7ecb/firestore/data/~2Fusers',
+    databaseURL:'https://console.firebase.google.com/project/my-project-b7ecb/firestore/data/~2Fusers~2F562lT7Jj0EMk3g0EIJqR',
     storageBucket: "my-project-b7ecb.appspot.com",
     messagingSenderId: "1052885078165",
     appId: "1:1052885078165:web:f472c88a1cd18a1ff60b9c",
-    measurementId: "G-6XY6P7DH3H"
+    measurementId: "G-6XY6P7DH3H",
   };
-
-  const app = initializeApp(firebaseConfig);
-
   const handleSignup = async () => {
     try {
+      setError(''); // Resetting the error state
+
       if (name && email && password && regno && contact && confirmpassword) {
-        // Check if passwords match
         if (password !== confirmpassword) {
-          alert('Passwords do not match.');
+          setError('Passwords do not match.');
           return;
         }
 
-        // Create a Firestore reference
-        const db = getFirestore(app);
+        const userExists = await firestore()
+          .collection('users')
+          .where('email', '==', email)
+          .get();
 
-        // Add user data to Firestore
-        const docRef = await addDoc(collection(db, 'users'), {
-          name,
-          email,
-          regno,
-          contact,
+        if (!userExists.empty) {
+          setError('Email address is already in use.');
+          return;
+        }
+
+        const regNoExists = await firestore()
+          .collection('users')
+          .where('regno', '==', regno)
+          .get();
+
+        if (!regNoExists.empty) {
+          setError('Registration number is already in use.');
+          return;
+        }
+
+        const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+
+        await firestore().collection('users').doc(userCredential.user.uid).set({
+          name: name,
+          email: email,
+          regno: regno,
+          contact: contact,
+          password: password,
         });
 
-        // Clear input fields
+        // Resetting state variables
         setName('');
         setEmail('');
         setPassword('');
@@ -67,12 +86,13 @@ const Signup = () => {
         setContact('');
         setConfirmpassword('');
 
-        alert('Signup successful! User data added to Firestore with ID: ' + docRef.id);
+        setError('Signup successful! User data added to Firestore.');
       } else {
-        alert('All fields are required.');
+        setError('All fields are required.');
       }
     } catch (error) {
       console.error('Error signing up:', error);
+      setError(`Error signing up: ${error.message}`);
     }
   };
 
@@ -82,15 +102,21 @@ const Signup = () => {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior="padding">
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.card}>
-          <Image
-            source={require('../trackon-bus-1.jpg')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.card}>
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
-          <Text style={styles.title}>University Bus Tracking System</Text>
+        <Image
+          source={require('../trackon-bus-1.jpg')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+
+        <Text style={styles.title}>University Bus Tracking System</Text>
 
           <View style={styles.inputContainer}>
             <FontAwesome5 name="user" size={16} color="#666" style={styles.inputIcon} />
@@ -102,7 +128,7 @@ const Signup = () => {
               placeholderTextColor="#666"
             />
           </View>
-           
+
           <View style={styles.inputContainer}>
             <FontAwesome5 name="id-card" size={16} color="#666" style={styles.inputIcon} />
             <TextInput
@@ -264,6 +290,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 5,
   },
+  
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    textAlign: 'center',
+    
+  },
+ 
 });
 
 export default Signup;

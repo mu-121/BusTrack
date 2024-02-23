@@ -1,24 +1,101 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Linking, Platform } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import PushNotification from 'react-native-push-notification';
+import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import Sound from 'react-native-sound';
 
 const AlarmScreen = () => {
   const [alarms, setAlarms] = useState([]);
   const [isTimePickerVisible, setTimePickerVisible] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [formattedSelectedTime, setFormattedSelectedTime] = useState(null);
+  const [selectedAmPm, setSelectedAmPm] = useState('AM');
+
+  const alarmSound = new Sound('alarm.wav', Sound.MAIN_BUNDLE, (error) => {
+    if (error) {
+      console.error('Failed to load the sound', error);
+    }
+  });
+
+  useEffect(() => {
+    requestAudioPermission();
+
+    PushNotification.configure({
+      onNotification: (notification) => {
+        console.log('Notification received:', notification);
+        if (notification.id) {
+          alarmSound.play();
+        }
+      },
+    });
+
+    // Check for alarms on component mount
+    checkAlarms();
+  }, [alarmSound]);
+
+  const requestAudioPermission = async () => {
+    const status = await request(
+      Platform.OS === 'ios'
+        ? PERMISSIONS.IOS.MEDIA_LIBRARY
+        : PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE
+    );
+
+    if (status === RESULTS.BLOCKED) {
+      Alert.alert(
+        'Permission Blocked',
+        'Audio permission is blocked. Please go to app settings and enable the permission.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              Linking.openSettings();
+            },
+          },
+        ]
+      );
+    }
+
+    console.log('Audio Permission Status:', status);
+  };
 
   const handleAddAlarm = () => {
     if (selectedTime) {
       const newAlarm = {
         id: Date.now().toString(),
-        time: selectedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        repeat: 'Daily', // You can add the option to choose repeat frequency if needed
+        time: formattedSelectedTime,
+        repeat: 'Daily',
       };
+
+      scheduleNotification(newAlarm);
       setAlarms((prevAlarms) => [...prevAlarms, newAlarm]);
       setSelectedTime(null);
+      setFormattedSelectedTime(null);
+      setSelectedAmPm('AM');
     } else {
       Alert.alert('Error', 'Please select the alarm time.');
     }
+  };
+
+  const scheduleNotification = (alarm) => {
+    const alarmTime = new Date();
+    const [hours, minutes, ampm] = alarm.time.split(/:| /);
+    const parsedHours = parseInt(hours, 10) % 12 + (ampm === 'PM' ? 12 : 0);
+    alarmTime.setHours(parsedHours);
+    alarmTime.setMinutes(parseInt(minutes, 10));
+
+    PushNotification.localNotificationSchedule({
+      id: alarm.id,
+      title: 'Alarm',
+      message: `Time to wake up!`,
+      date: alarmTime,
+      repeatType: 'day',
+      soundName: 'default',
+    });
   };
 
   const handleDeleteAlarm = (id) => {
@@ -29,8 +106,15 @@ const AlarmScreen = () => {
   };
 
   const deleteAlarm = (id) => {
+    const alarm = alarms.find((a) => a.id === id);
+    cancelNotification(alarm);
+
     const updatedAlarms = alarms.filter((alarm) => alarm.id !== id);
     setAlarms(updatedAlarms);
+  };
+
+  const cancelNotification = (alarm) => {
+    PushNotification.cancelLocalNotifications({ id: alarm.id });
   };
 
   const renderAlarmItem = ({ item }) => (
@@ -60,8 +144,50 @@ const AlarmScreen = () => {
   const handleConfirmTime = (selectedTime) => {
     hideTimePicker();
     if (selectedTime) {
+      const [hours, minutes, ampm] = selectedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).split(/:| /);
+      const parsedHours = parseInt(hours, 10);
+      const formattedHours = parsedHours % 12 || 12;
+      const formattedTime = `${formattedHours}:${minutes} ${ampm}`;
       setSelectedTime(selectedTime);
+      setFormattedSelectedTime(formattedTime);
+
+      // Schedule the alarm for the selected time
+      scheduleAlarmForSelectedTime(selectedTime);
     }
+  };
+
+  const scheduleAlarmForSelectedTime = (selectedTime) => {
+    const currentTime = new Date();
+    const timeDiff = selectedTime - currentTime;
+
+    if (timeDiff > 0) {
+      // Schedule the alarm notification with the time difference
+      setTimeout(() => {
+        alarmSound.play();
+      }, timeDiff);
+    } else {
+      // The selected time has already passed
+      Alert.alert('Selected time has already passed. Please select a future time.');
+    }
+  };
+
+  const checkAlarms = () => {
+    // Check existing alarms and schedule them if their time has not passed
+    alarms.forEach((alarm) => {
+      const alarmTime = new Date();
+      const [hours, minutes, ampm] = alarm.time.split(/:| /);
+      const parsedHours = parseInt(hours, 10) % 12 + (ampm === 'PM' ? 12 : 0);
+      alarmTime.setHours(parsedHours);
+      alarmTime.setMinutes(parseInt(minutes, 10));
+
+      const timeDiff = alarmTime - new Date();
+      if (timeDiff > 0) {
+        // Schedule the alarm notification with the time difference
+        setTimeout(() => {
+          alarmSound.play();
+        }, timeDiff);
+      }
+    });
   };
 
   return (
@@ -69,13 +195,9 @@ const AlarmScreen = () => {
       <Text style={styles.title}>Set Alarm</Text>
       <TouchableOpacity style={styles.timePickerButton} onPress={showTimePicker}>
         <Text style={styles.timePickerButtonText}>Select Alarm Time</Text>
-        {selectedTime ? (
-          <Text style={styles.timePickerText}>
-            {selectedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        ) : (
-          <Text style={styles.timePickerPlaceholderText}>Select Time</Text>
-        )}
+        <Text style={styles.timePickerText}>
+          {formattedSelectedTime || 'Select Time'}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.setAlarmButton} onPress={handleAddAlarm}>
@@ -92,7 +214,7 @@ const AlarmScreen = () => {
       <DateTimePickerModal
         isVisible={isTimePickerVisible}
         mode="time"
-        is24Hour
+        is24Hour={false} // Set to false to enable 12-hour format
         onConfirm={handleConfirmTime}
         onCancel={hideTimePicker}
       />
@@ -131,10 +253,6 @@ const styles = StyleSheet.create({
   timePickerText: {
     fontSize: 16,
     color: '#333',
-  },
-  timePickerPlaceholderText: {
-    fontSize: 16,
-    color: '#999',
   },
   setAlarmButton: {
     width: '100%',

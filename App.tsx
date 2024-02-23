@@ -1,18 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { AppRegistry } from 'react-native';
 import { name as appName } from './app.json';
-import AppNavigator from './Navigations/Drawernavigation';
+import AppNavigator from './Navigations/Drawernavigation'; 
+
 const App = () => {
   return (
-    <AppNavigator />
-    //<AppNavigators />
+    <AppNavigator/>
   );
 };
 
-// Register your app component with AppRegistry
 AppRegistry.registerComponent(appName, () => App);
 
 export default App;
-
-
-

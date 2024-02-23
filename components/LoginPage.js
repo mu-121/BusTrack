@@ -1,26 +1,64 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5'; // Import FontAwesome5
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { initializeApp } from '@react-native-firebase/app';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+
+const firebaseConfig = {
+  // Your Firebase configuration here
+  apiKey: "AIzaSyCV1UW_QBiSU6tRfgE5xgPXM1QnBpUm6Xc",
+  authDomain: "my-project-b7ecb.firebaseapp.com",
+  projectId: "my-project-b7ecb",
+  databaseURL:'https://console.firebase.google.com/project/my-project-b7ecb/firestore/data/~2Fusers~2F562lT7Jj0EMk3g0EIJqR',
+  storageBucket: "my-project-b7ecb.appspot.com",
+  messagingSenderId: "1052885078165",
+  appId: "1:1052885078165:web:f472c88a1cd18a1ff60b9c",
+  measurementId: "G-6XY6P7DH3H",
+};
+
+const app = initializeApp(firebaseConfig);
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [errorText, setErrorText] = useState('');
 
   const navigation = useNavigation();
 
-  const handleLogin = () => {
-    // Perform login logic here, e.g., API call for authentication
-    // For the sake of example, let's assume successful login
-    const isAuthenticated = true;
+  const handleLogin = async () => {
+    try {
+      setErrorText('');
 
-    if (isAuthenticated) {
-      navigation.navigate('BusTrackingMap'); // Navigate to Maps screen
-    } else {
-      // Handle unsuccessful login, show an error message, etc.
-      console.log('Login failed');
+      if (!username || !password) {
+        setErrorText('Both registration number and password are required.');
+        return;
+      }
+
+      const userSnapshot = await firestore()
+        .collection('users')
+        .where('regno', '==', username)
+        .get();
+
+      if (!userSnapshot.empty) {
+        const userDoc = userSnapshot.docs[0];
+        const userData = userDoc.data();
+
+        if (userData.password === password) {
+          navigation.navigate('BusTrackingMap', { bus: userData.bus });
+        } else {
+          setErrorText('Invalid password');
+        }
+      } else {
+        setErrorText('User not found');
+      }
+    } catch (error) {
+      console.error('Error logging in:', error);
     }
   };
+  
+
 
   const navigateToSignup = () => {
     navigation.navigate('Signup');
@@ -31,7 +69,7 @@ const Login = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
           <Image
-            source={require('../trackon-bus-1.jpg')} // Replace with your app logo
+            source={require('../trackon-bus-1.jpg')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -60,6 +98,8 @@ const Login = () => {
               secureTextEntry
             />
           </View>
+
+          <Text style={styles.errorText}>{errorText}</Text>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
             <Text style={styles.loginButtonText}>Login</Text>
@@ -143,7 +183,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 5,
-    marginTop: 10,
+    marginTop: -9,
   },
   loginButtonText: {
     color: 'white',
@@ -163,6 +203,11 @@ const styles = StyleSheet.create({
     color: '#187bcd',
     fontWeight: 'bold',
     marginLeft: 5,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
 

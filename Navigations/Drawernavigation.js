@@ -8,7 +8,8 @@ import ArrivalTime from '../components/ArrivalTime';
 import NearStops from '../components/NearByStops';
 import AlarmScreen from '../components/AlarmScreen';
 import LogoutScreen from '../components/LogoutScreen';
-
+import AssignRoute from '../components/AssignRoutes';
+import UserInfoScreen from '../components/UserInfo';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 const Drawer = createDrawerNavigator();
@@ -18,7 +19,7 @@ const AppNavigator = () => {
     <NavigationContainer>
       <Drawer.Navigator
         initialRouteName="BusTracking"
-        drawerStyle={styles.drawer}
+       drawerStyle={styles.drawer}
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         screenOptions={{
           drawerActiveTintColor: '#0066cc',
@@ -101,6 +102,37 @@ const AppNavigator = () => {
           }}
         />
         <Drawer.Screen
+          name="AssignRoute"
+          component={AssignRoute} // Add this line
+          options={{
+            drawerLabel: 'Assign Route',
+            drawerIcon: ({ focused }) => (
+              <FontAwesome5
+                name="route"
+                size={20}
+                color={focused ? '#0066cc' : 'black'}
+                style={styles.drawerIcon}
+              />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="UserInfo"
+          component={UserInfoScreen}
+          options={{
+            drawerLabel: 'User Info',
+            drawerIcon: ({ focused }) => (
+              <FontAwesome5
+                name="user"
+                size={20}
+                color={focused ? '#0066cc' : 'black'}
+                style={styles.drawerIcon}
+              />
+            ),
+          }}
+        />
+       
+        <Drawer.Screen
           name="Logout"
           component={LogoutScreen}
           options={{ drawerLabel: 'Logout' }}
@@ -111,13 +143,14 @@ const AppNavigator = () => {
 };
 
 const CustomDrawerContent = ({ navigation, state }) => {
-  const user = "John Doe";
+  const user = " ";
   const drawerItems = [
     { route: 'BusTracking', label: 'Home' },
     { route: 'BusSchedule', label: 'Bus Schedule' },
     { route: 'ArrivalTime', label: 'Arrival Time' },
     { route: 'NearByStops', label: 'Nearby Stops' },
     { route: 'AlarmScreen', label: 'Set Alarm' },
+    { route: 'AssignRoute', label: 'Assign Route' },
     { route: 'Logout', label: 'Logout' },
   ];
 
@@ -138,11 +171,14 @@ const CustomDrawerContent = ({ navigation, state }) => {
             ? 'bus'
             : item.route === 'ArrivalTime'
             ? 'clock'
+            : item.route === 'AssignRoute'
+            ? 'route'
             : item.route === 'NearByStops'
             ? 'map-marker'
             : item.route === 'AlarmScreen'
             ? 'bell'
             : 'question'
+            
         }
         size={20}
         color={state.index === index ? '#0066cc' : 'black'}
